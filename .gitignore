@@ -1,0 +1,42 @@
+# Hugo Generated Files and Directories
+/public/
+/resources/_gen/
+/assets/jsconfig.json
+hugo_stats.json
+hugo.log
+
+# Hugo Executables
+hugo.exe
+hugo.darwin
+hugo.linux
+
+# Temporary Files
+/.hugo_build.lock
+
+# Operating System Specific Files
+.DS_Store
+Thumbs.db
+
+# VS Code Specific Files
+*.code-workspace
+.vscode/
+
+# Environment Variables
+.env
+.env.*
+
+# Hugo Modules (Go Modules)
+go.mod
+go.sum
+vendor/
+
+# Node.js / NPM
+node_modules/
+npm-debug.log*
+
+# Hugo Drafts
+content/drafts/
+
+# Front Matter VSCode Extension
+frontmatter.json
+.frontmatter/

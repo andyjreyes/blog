@@ -1,0 +1,24 @@
+disabled = false
+languageCode = "en-us"
+languageName = "English"
+weight = 1
+title = "Andy Reyes"
+
+[params]
+displayName = "EN"
+isoCode = "en-us"
+rtl = false
+dateFormat = "January 2 2006"
+logo = ""
+secondaryLogo = ""
+
+["params.author"]
+name = "Andy Reyes"
+image = "andy-profile.jpg"
+headline = "Software is Storytelling"
+bio = "iOS Software Engineer, Storyteller, and Friend"
+links = [
+  {linkedin = "https://www.linkedin.com/in/andyjreyes/"},
+  {bluesky = "https://bsky.app/profile/andyjreyes.com"},
+  {threads = "https://www.threads.com/@andyjreyes"},
+]
