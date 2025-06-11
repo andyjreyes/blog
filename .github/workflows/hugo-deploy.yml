@@ -1,0 +1,153 @@
+# This workflow automates the build and deployment of this Hugo site
+# to GitHub Pages using GitHub Actions.
+# It incorporates best practices for caching, minification, and
+# leverages official and well-maintained community actions for reliability.
+
+name: Deploy Hugo Site to GitHub Pages
+
+# Controls when this workflow will run.
+# Triggered on pushes to the 'main' branch and allows manual triggering.
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: # Allows manual execution from the Actions tab
+
+# Sets permissions for the GITHUB_TOKEN to allow deployment to GitHub Pages.
+# This is crucial for the actions/deploy-pages to function correctly.
+permissions:
+  contents: read   # Read access is typically sufficient and more secure.
+  pages: write      # To deploy to GitHub Pages environment
+  id-token: write   # Required for OpenID Connect authentication with GitHub Pages
+
+# Enforce a single concurrent deployment per branch.
+# This prevents multiple workflow runs from conflicting during deployment.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true # Cancel any in-progress runs if a new one is triggered
+
+# Define the build and deploy job
+jobs:
+  deploy:
+    runs-on: ubuntu-latest # Run this job on the latest Ubuntu runner
+    
+    # Define environment variables at the job level for reusability that are not path-dependent
+    env:
+      TZ: America/Los_Angeles # Sets the timezone for consistent date generation
+
+    steps:
+      # Step 1: Checkout the repository code
+      # This action checks out the repository under $GITHUB_WORKSPACE,
+      # so the workflow can access its content.
+      - name: Checkout repository
+        uses: actions/checkout@v4 # Uses v4 for the latest features and security updates
+        with:
+          fetch-depth: 0 # Fetches all history for all tags and branches (useful for .GitInfo, etc.)
+          submodules: true # Ensures Git submodules (like the theme) are also checked out
+
+      # Step 2: Set up Hugo environment
+      # This action installs the specified Hugo version.
+      # 'extended: true' is vital for themes using Sass/SCSS (like Blowfish) and WebP.
+      # The Hugo version can be pinned to a specific version (e.g., '0.127.0') for more stability
+      # instead of 'latest' if unexpected breakages are encountered.
+      - name: Setup Hugo
+        id: setup_hugo # Added an ID to this step to reference its outputs
+        uses: peaceiris/actions-hugo@v3 # Uses v3 for latest stable version
+        with:
+          hugo-version: 'latest' # Uses the latest Hugo version (or a specific version)
+          extended: true         # Enables extended features (Sass/SCSS, WebP)
+
+      # Step 3: Cache Go Modules
+      # This step caches Go Modules dependencies, significantly speeding up builds
+      # if module dependencies (e.g., from themes installed as modules) haven't changed.
+      - name: Cache Go Modules
+        uses: actions/cache@v4 # Uses v4 for the latest caching features
+        with:
+          path: ~/go/pkg/mod # Go Modules cache path
+          # Key based on OS and hash of go.sum (for Go Modules dependency changes)
+          key: ${{ runner.os }}-go-mod-${{ hashFiles('**/go.sum') }}
+          # Restore keys for broader matches
+          restore-keys: |
+            ${{ runner.os }}-go-mod-
+            ${{ runner.os }}-
+
+      # Step 4: Cache Hugo build resources (e.g., processed images, compiled Sass)
+      # This step caches Hugo's internal build cache, speeding up subsequent builds
+      # when content or asset processing hasn't drastically changed.
+      - name: Cache Hugo build resources
+        uses: actions/cache@v4 # Uses v4 for the latest caching features
+        with:
+          # Defines path to Hugo's build cache using runner.temp directly
+          path: ${{ runner.temp }}/hugo_cache 
+          # Key based on OS, Hugo version from setup_hugo step, and hash of relevant content/asset files.
+          # Including config files and themes ensures cache invalidation when these change.
+          key: ${{ runner.os }}-hugo-cache-${{ steps.setup_hugo.outputs.hugo-version }}-${{ hashFiles('content/**', 'assets/**', 'layouts/**', 'config.toml', 'config/_default/**', 'themes/**') }}
+          # Restore keys for broader matches
+          restore-keys: |
+            ${{ runner.os }}-hugo-cache-
+            ${{ runner.os }}-
+
+      # Step 5: Cache Node.js dependencies
+      # This caches the 'node_modules' folders generated in themes,
+      # significantly speeding up subsequent workflow runs if dependencies haven't changed.
+      - name: Cache Node.js dependencies
+        uses: actions/cache@v4
+        with:
+          # Caches all node_modules directories found within themes/
+          path: themes/**/node_modules
+          # Key based on OS and hash of all package-lock.json (or yarn.lock) files within themes/
+          key: ${{ runner.os }}-npm-${{ hashFiles('themes/**/package-lock.json', 'themes/**/yarn.lock') }}
+          # Restore keys for broader matches
+          restore-keys: |
+            ${{ runner.os }}-npm-
+            ${{ runner.os }}-
+      
+      # Step 6: Install Node.js dependencies for all themes
+      # This step iterates through all installed themes and installs Node.js
+      # dependencies if a package.json is found in their root.
+      # This is crucial for themes with asset pipelines (e.g., Tailwind CSS, PostCSS)
+      # that rely on npm/yarn dependencies.
+      - name: Install Node.js dependencies for themes
+        run: |
+          THEMES_DIR="themes"
+          if [ -d "$THEMES_DIR" ]; then
+            for THEME_PATH in "$THEMES_DIR"/*; do
+              if [ -d "$THEME_PATH" ]; then # Checks if it's a directory
+                if [ -f "$THEME_PATH/package.json" ]; then
+                  echo "Found package.json in theme: $(basename "$THEME_PATH"), installing dependencies..."
+                  # Uses --prefix for cleaner handling, installing dependencies into the theme's node_modules
+                  npm ci --prefix "$THEME_PATH"
+                else
+                  echo "No package.json found in theme: $(basename "$THEME_PATH"), skipping."
+                fi
+              fi
+            done
+          else
+            echo "Themes directory not found, skipping Node.js dependency installation for themes."
+          fi
+
+      # Step 7: Build the Hugo site
+      # The '--minify' flag is crucial for optimizing this site's size.
+      # HUGO_ENVIRONMENT is explicitly set to production for correct build behavior.
+      - name: Build Hugo site
+        env:
+          HUGO_ENVIRONMENT: production # Sets Hugo environment to production
+          # HUGO_CACHEDIR cannot be set as a job-level env variable using runner.temp
+          # So it's passed as a command-line argument directly to Hugo
+        run: hugo --minify --gc -E --cacheDir ${{ runner.temp }}/hugo_cache # Builds the site, minifies, garbage collects, and enables GitInfo
+
+      # Step 8: Upload the built site as an artifact
+      # This action takes the generated 'public' directory and makes it an artifact
+      # for the deployment job.
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3 # Uses v3 for the latest artifact upload features
+        with:
+          path: ./public # Path to the directory containing the built static files
+
+      # Step 9: Deploy the site to GitHub Pages
+      # This is the official GitHub Pages deployment action.
+      # It automatically handles pushing the artifact to the GitHub Pages serving infrastructure.
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # Uses v4 for the latest deployment features
+        # The 'url' output of this action will be the live URL of the deployed site
