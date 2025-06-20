@@ -26,10 +26,14 @@ enableEmoji = true
   anchor = 'Center'
 
 [taxonomies]
+  blog = "blog" 
   tag = "tags"
   category = "categories"
   author = "authors"
   series = "series"
+
+[permalinks]
+  categories = "/:slug/" # Category pages will be available at /category-name/
 
 [sitemap]
   changefreq = 'daily'

@@ -12,7 +12,7 @@ dateFormat = "January 2 2006"
 logo = ""
 secondaryLogo = ""
 
-["params.author"]
+[params.author]
 name = "Andy Reyes"
 image = "andy-profile.jpg"
 headline = "Software is Storytelling"
