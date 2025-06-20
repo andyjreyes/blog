@@ -32,7 +32,7 @@ layout = "background"
 showRecent = false
 showRecentItems = 5
 showMoreLink = ""
-showMoreLinkDest = "/posts/"
+showMoreLinkDest = "/blog/"
 cardView = false
 cardViewScreenWidth = false
 layoutBackgroundBlur = true
@@ -45,7 +45,9 @@ showLikes = false
 showDateOnlyInArticle = false
 showDateUpdated = false
 showAuthor = true
-showHero = false
+showAuthorBottom = true
+showHero = true
+heroStyle = "thumbAndBackground"
 layoutBackgroundBlur = true
 layoutBackgroundHeaderSpace = true
 showBreadcrumbs = false
@@ -65,11 +67,12 @@ showWordCount = true
 showZenMode = false
 
 [list]
-showHero = false
+showHero = true
+heroStyle = "thumbAndBackground"
 layoutBackgroundBlur = true
 layoutBackgroundHeaderSpace = true
-showBreadcrumbs = false
-showSummary = false
+showBreadcrumbs = true
+showSummary = true
 showViews = false
 showLikes = false
 showTableOfContents = false
@@ -85,7 +88,8 @@ excludedKinds = [ "taxonomy", "term" ]
 
 [taxonomy]
 showTermCount = true
-showHero = false
+showHero = true
+heroStyle = "thumbAndBackground"
 showBreadcrumbs = false
 showViews = false
 showLikes = false
@@ -93,7 +97,8 @@ showTableOfContents = false
 cardView = false
 
 [term]
-showHero = false
+showHero = true
+heroStyle = "thumbAndBackground"
 showBreadcrumbs = false
 showViews = false
 showLikes = false
