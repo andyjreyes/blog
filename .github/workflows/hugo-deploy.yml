@@ -11,6 +11,12 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # This will run at 13:00 UTC every Saturday.
+    # This translates to:
+    #   - 5:00 AM PST on Saturday (during Standard Time)
+    #   - 6:00 AM PDT on Saturday (during Daylight Saving Time)
+    - cron: '0 13 * * 6' # Minute 0, Hour 13, any day of month, any month, Day of Week 6 (Saturday)
   workflow_dispatch: # Allows manual execution from the Actions tab
 
 # Sets permissions for the GITHUB_TOKEN to allow deployment to GitHub Pages.
