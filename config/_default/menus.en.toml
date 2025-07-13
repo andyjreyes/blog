@@ -31,6 +31,12 @@
   pageRef = "now"
   weight = 4
 
+[[main]]
+  name = "Chipotle"
+  parent = "About Me"
+  pageRef = "chipotle"
+  weight = 5
+
 #[[main]]
 #  name = "example sub-menu 2"
 #  parent = "Parent"
