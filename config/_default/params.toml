@@ -16,6 +16,7 @@ buymeacoffee = { }
 verification = { }
 rssnext = { }
 defaultBackgroundImage = "chinzanso-garden-day.jpg"
+mainSections = ["blog"]
 
 [header]
 layout = "basic"
@@ -29,11 +30,11 @@ showScrollToTop = true
 
 [homepage]
 layout = "background"
-showRecent = false
-showRecentItems = 5
-showMoreLink = ""
+showRecent = true
+showRecentItems = 6
+showMoreLink = true
 showMoreLinkDest = "/blog/"
-cardView = false
+cardView = true
 cardViewScreenWidth = false
 layoutBackgroundBlur = true
 homepageImage = "chinzanso-garden-day.jpg"
