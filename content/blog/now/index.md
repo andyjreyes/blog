@@ -1,13 +1,14 @@
 ---
 title: Now
-date: 2025-07-12T16:13:35.248Z
-description: "What I'm doing now."
+linkTitle: "Now (July 2025)"
+date: 2025-07-12
+description: "What Andy Reyes is doing now."
 summary: "What I'm doing now."
 draft: false
 showHero: true
 heroStyle: background
 categories:
-    - Now
+    - Now Page
     - Slash
 tags:
     - Etegami
@@ -52,3 +53,10 @@ appears. The best part: I’m not beholden to any popular blogging platforms or 
 look forward to conveying my thoughts and beliefs on this blog, sort of like a public journal, and
 also providing advice and life tips to those who want to follow a similar path to me as a Software
 Engineer in Silicon Valley.
+
+---
+
+_What is this page?_ This is a [/now](https://indieweb.org/now) "Slash Page" inspired by
+[Derek Sivers](https://sive.rs/now).
+<br>
+[Discover more of my Slash Pages here](https://andyjreyes.com/slash).
