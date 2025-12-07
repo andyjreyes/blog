@@ -51,22 +51,86 @@ jobs:
           fetch-depth: 0 # Fetches all history for all tags and branches (useful for .GitInfo, etc.)
           submodules: true # Ensures Git submodules (like the theme) are also checked out
 
-      # Step 2: Set up Hugo environment
+      # Step 2: Check for updates (Only runs on scheduled events)
+      # This step determines if a build is needed by checking for recent commits or newly published posts.
+      # The build will be skipped if neither condition is met to avoid redundant deployments.
+      - name: Check for updates
+        id: check_updates
+        if: github.event_name == 'schedule' # This step only runs for scheduled workflows
+        run: |
+          # Constants: 7 days + 1 hour buffer = 608400 seconds
+          # Adding a small buffer to account for potential clock skew or slight delays
+          THRESHOLD=608400 
+          CURRENT_TIME=$(date +%s)
+          MIN_TIME=$((CURRENT_TIME - THRESHOLD))
+          
+          echo "Current UTC Unix Timestamp: $CURRENT_TIME"
+          echo "Minimum UTC Unix Timestamp for activity detection (last 7 days + buffer): $MIN_TIME"
+
+          # 1. Git Commit Check: Determine if there are any recent commits on the main branch
+          # This checks if the latest commit is within the defined threshold (e.g., last 7 days)
+          LATEST_COMMIT_TIME=$(git log -1 --format=%ct)
+          echo "Latest commit timestamp: $LATEST_COMMIT_TIME"
+          
+          if [ $((CURRENT_TIME - LATEST_COMMIT_TIME)) -le $THRESHOLD ]; then
+            echo "Recent commit detected within the last 7 days. Proceeding with build."
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0 # Exit early as a build is required due to recent code changes
+          fi
+          
+          echo "No recent commits. Now checking for newly matured posts (published in the last 7 days)..."
+
+          # 2. Content Date Check: Look for posts whose 'date' or 'publishDate' falls within the last 7 days
+          # This helps to automatically publish posts that were future-dated (scheduled) and have now gone live.
+          # We search recursively for 'date' or 'publishDate' in content files, extracting their values.
+          
+          # Using process substitution to allow 'exit 0' to terminate the entire step script upon finding a match.
+          grep -rE "^(date|publishDate)" content/ | while read -r line; do
+             # Extracts the date string, handling both YAML (key: value) and TOML (key = value) formats,
+             # and removing any surrounding quotes.
+             DATE_STR=$(echo "$line" | sed -E 's/.*(date|publishDate)\s*[:=]\s*["\x27]?([^"\x27]+)["\x27]?.*/\2/')
+             
+             # Parses the extracted date string into a Unix timestamp using GNU date, suppressing errors.
+             TS=$(date -d "$DATE_STR" +%s 2>/dev/null)
+             
+             # If a valid timestamp was parsed
+             if [ -n "$TS" ]; then
+                # Check if the post's date falls within the 'Just Went Live' window:
+                # (CURRENT_TIME - THRESHOLD) < Post_Date_Timestamp <= CURRENT_TIME
+                # This means the post was published sometime within the last 7 days + buffer.
+                if [ "$TS" -gt "$MIN_TIME" ] && [ "$TS" -le "$CURRENT_TIME" ]; then
+                   echo "Found recently matured post: '$DATE_STR' (Timestamp: $TS). Proceeding with build."
+                   echo "should_run=true" >> "$GITHUB_OUTPUT"
+                   exit 0 # Exit early as a build is required due to a newly matured post
+                fi
+             fi
+          done
+
+          # If neither recent commits nor newly matured posts are found, skip the build.
+          echo "No recent activity (commits or matured posts) detected. Skipping scheduled build."
+          echo "should_run=false" >> "$GITHUB_OUTPUT"
+
+      # Step 3: Set up Hugo environment
       # This action installs the specified Hugo version.
       # 'extended: true' is vital for themes using Sass/SCSS (like Blowfish) and WebP.
       # The Hugo version can be pinned to a specific version (e.g., '0.127.0') for more stability
       # instead of 'latest' if unexpected breakages are encountered.
       - name: Setup Hugo
+        # This step, and all subsequent steps, will only run if 'should_run' is not 'false'.
+        # For 'push' and 'workflow_dispatch' events, 'check_updates' is skipped,
+        # so 'should_run' will be empty, which is not 'false', allowing the build to proceed.
+        if: steps.check_updates.outputs.should_run != 'false'
         id: setup_hugo # Added an ID to this step to reference its outputs
         uses: peaceiris/actions-hugo@v3 # Uses v3 for latest stable version
         with:
           hugo-version: 'latest' # Uses the latest Hugo version (or a specific version)
           extended: true         # Enables extended features (Sass/SCSS, WebP)
 
-      # Step 3: Cache Go Modules
+      # Step 4: Cache Go Modules
       # This step caches Go Modules dependencies, significantly speeding up builds
       # if module dependencies (e.g., from themes installed as modules) haven't changed.
       - name: Cache Go Modules
+        if: steps.check_updates.outputs.should_run != 'false'
         uses: actions/cache@v4 # Uses v4 for the latest caching features
         with:
           path: ~/go/pkg/mod # Go Modules cache path
@@ -77,10 +141,11 @@ jobs:
             ${{ runner.os }}-go-mod-
             ${{ runner.os }}-
 
-      # Step 4: Cache Hugo build resources (e.g., processed images, compiled Sass)
+      # Step 5: Cache Hugo build resources (e.g., processed images, compiled Sass)
       # This step caches Hugo's internal build cache, speeding up subsequent builds
       # when content or asset processing hasn't drastically changed.
       - name: Cache Hugo build resources
+        if: steps.check_updates.outputs.should_run != 'false'
         uses: actions/cache@v4 # Uses v4 for the latest caching features
         with:
           # Defines path to Hugo's build cache using runner.temp directly
@@ -93,10 +158,11 @@ jobs:
             ${{ runner.os }}-hugo-cache-
             ${{ runner.os }}-
 
-      # Step 5: Cache Node.js dependencies
+      # Step 6: Cache Node.js dependencies
       # This caches the 'node_modules' folders generated in themes,
       # significantly speeding up subsequent workflow runs if dependencies haven't changed.
       - name: Cache Node.js dependencies
+        if: steps.check_updates.outputs.should_run != 'false'
         uses: actions/cache@v4
         with:
           # Caches all node_modules directories found within themes/
@@ -108,12 +174,13 @@ jobs:
             ${{ runner.os }}-npm-
             ${{ runner.os }}-
       
-      # Step 6: Install Node.js dependencies for all themes
+      # Step 7: Install Node.js dependencies for all themes
       # This step iterates through all installed themes and installs Node.js
       # dependencies if a package.json is found in their root.
       # This is crucial for themes with asset pipelines (e.g., Tailwind CSS, PostCSS)
       # that rely on npm/yarn dependencies.
       - name: Install Node.js dependencies for themes
+        if: steps.check_updates.outputs.should_run != 'false'
         run: |
           THEMES_DIR="themes"
           if [ -d "$THEMES_DIR" ]; then
@@ -132,28 +199,31 @@ jobs:
             echo "Themes directory not found, skipping Node.js dependency installation for themes."
           fi
 
-      # Step 7: Build the Hugo site
+      # Step 8: Build the Hugo site
       # The '--minify' flag is crucial for optimizing this site's size.
       # HUGO_ENVIRONMENT is explicitly set to production for correct build behavior.
       - name: Build Hugo site
+        if: steps.check_updates.outputs.should_run != 'false'
         env:
           HUGO_ENVIRONMENT: production # Sets Hugo environment to production
           # HUGO_CACHEDIR cannot be set as a job-level env variable using runner.temp
           # So it's passed as a command-line argument directly to Hugo
         run: hugo --minify --gc -E --cacheDir ${{ runner.temp }}/hugo_cache # Builds the site, minifies, garbage collects, and enables GitInfo
 
-      # Step 8: Upload the built site as an artifact
+      # Step 9: Upload the built site as an artifact
       # This action takes the generated 'public' directory and makes it an artifact
       # for the deployment job.
       - name: Upload artifact
+        if: steps.check_updates.outputs.should_run != 'false'
         uses: actions/upload-pages-artifact@v3 # Uses v3 for the latest artifact upload features
         with:
           path: ./public # Path to the directory containing the built static files
 
-      # Step 9: Deploy the site to GitHub Pages
+      # Step 10: Deploy the site to GitHub Pages
       # This is the official GitHub Pages deployment action.
       # It automatically handles pushing the artifact to the GitHub Pages serving infrastructure.
       - name: Deploy to GitHub Pages
+        if: steps.check_updates.outputs.should_run != 'false'
         id: deployment
         uses: actions/deploy-pages@v4 # Uses v4 for the latest deployment features
         # The 'url' output of this action will be the live URL of the deployed site
