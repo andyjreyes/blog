@@ -1,0 +1,21 @@
+.custom-grid-gap {
+  gap: 0.5rem;
+}
+
+.responsive-img-col {
+  width: 100%; /* Mobile: Full width */
+  min-width: 150px;
+  max-width: 600px;
+  flex: none;
+}
+
+@media (min-width: 853px) {
+  .custom-grid-gap {
+    gap: 2rem;
+  }
+
+  .responsive-img-col {
+    width: 30%; /* Desktop: 30% of width */
+    min-width: 400px; /* Desktop min: 400px */
+  }
+}

@@ -1,0 +1,13 @@
+{{- $src := .Get "src" -}}
+{{- $width := .Get "width" | default "200" -}}
+{{- $alt := .Get "alt" -}}
+{{- $image := .Page.Resources.GetMatch $src -}}
+{{- if not $image -}}
+{{- $image = resources.Get $src -}}
+{{- end -}}
+{{- if $image -}}
+{{- $resized := $image.Resize (printf "%sx" $width) -}}
+<img src="{{ $resized.RelPermalink }}" width="{{ $resized.Width }}" height="{{ $resized.Height }}" alt="{{ $alt }}" class="rounded-lg h-auto max-w-full">
+{{- else -}}
+<img src="{{ $src }}" width="{{ $width }}" alt="{{ $alt }}" class="rounded-lg h-auto max-w-full">
+{{- end -}}
