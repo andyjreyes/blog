@@ -1,0 +1,9 @@
+{{- $id := .Get "id" | default "SgXhGb-7QbU" -}}
+{{- $label := .Get "id" | default "Blowfish" -}}
+{{- $params := .Get "params" -}}
+{{- $caption := .Get "caption" -}}
+
+<figure>
+    <lite-youtube videoid="{{ $id }}" playlabel="{{ $label }}" params="{{ $params }}"></lite-youtube>
+    {{ with $caption }}<figcaption class="text-center text-sm mt-2 opacity-80">{{ . | markdownify }}</figcaption>{{ end }}
+</figure>
